@@ -14,6 +14,11 @@ let ( + ) = ( +. )
 let ( * ) = ( *. )
 let ( / ) = ( /. )
 
+let ( -. ) = Vec.sub
+let ( +. ) = Vec.add
+let ( *. ) = Vec.mult
+let ( /. ) = Vec.div
+
 let black = { r=0.; g=0.; b=0. }
 let red = { r=1.; g=0.; b=0. }
 let green = { r=0.; g=1.; b=0. }
