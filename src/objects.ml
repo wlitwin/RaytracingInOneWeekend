@@ -3,6 +3,7 @@ open Ray
 
 type texture = Lambert of Vec.t (* albedo *)
              | Metal of Vec.t (* albedo *) * float (* fuzz *)
+             | Dielectric of float (* refraction index *)
 
 type hit_record = {
     t : float;

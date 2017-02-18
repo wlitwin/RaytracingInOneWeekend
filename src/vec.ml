@@ -9,6 +9,10 @@ let one = {x=1.;y=1.;z=1.}
 
 let mk x y z = {x=x;y=y;z=z}
 
+let x = mk 1. 0. 0.
+let y = mk 0. 1. 0.
+let z = mk 0. 0. 1.
+
 let op f {x;y;z} = {
     x = f x;
     y = f y;
@@ -68,3 +72,11 @@ let cross {x=x1;y=y1;z=z1} {x=x2;y=y2;z=z2} = {
 
 let reflect v n = sub v (s_mult (2. *. (dot v n)) n)
 
+let refract v n ni_over_nt =
+    let uv = norm v in
+    let dt = dot uv n in
+    let discriminant = 1.0 -. ni_over_nt*.ni_over_nt*.(1.0 -. dt*.dt) in
+    if discriminant > 0. then
+        Some (sub (s_mult ni_over_nt (sub uv (s_mult dt n))) (s_mult (sqrt discriminant) n))
+    else
+        None

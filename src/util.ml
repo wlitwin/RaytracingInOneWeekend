@@ -52,6 +52,12 @@ let iter_image f image =
     done
 ;;
 
+let schlick cosine ref_idx =
+    let r0 = (1. - ref_idx) / (1. + ref_idx) in
+    let r0 = r0 * r0 in
+    r0 + (1. - r0) * ((1. - cosine) ** 5.)
+;;
+
 let randf () = Random.float 0.99999999999999
 
 let rec random_in_unit_sphere () =
