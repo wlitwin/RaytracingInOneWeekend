@@ -1,3 +1,5 @@
+include Rand
+
 type color = {
     r : float;
     g : float;
@@ -57,8 +59,6 @@ let schlick cosine ref_idx =
     let r0 = r0 * r0 in
     r0 + (1. - r0) * ((1. - cosine) ** 5.)
 ;;
-
-let randf () = Random.float 0.99999999999999
 
 let rec random_in_unit_sphere () =
     let open Vec in

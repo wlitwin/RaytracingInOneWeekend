@@ -5,8 +5,6 @@ open Ray
 open Objects
 open Texture
 
-let _ = Random.self_init ()
-
 let rec shoot_ray ray objs depth : Vec.t =
     match hit_many ray 0.001 max_float objs with
     | Some hit_rec -> 
@@ -52,8 +50,11 @@ let _ =
     let s1 = Sphere ({x= ~-.r; y=0.; z= ~-.1.}, r, Lambert (Vec.mk 0. 0. 1.))
     and s2 = Sphere ({x=  r; y=0.; z= ~-.1.}, r, Lambert (Vec.mk 1. 0. 0.)) in
     let objs = [s1;s2] in
-*)
-    let camera = Camera.look_at (Vec.mk ~-.2. 2. 1.) (Vec.mk 0. 0. ~-.1.) Vec.y 30. (float nx / float ny) in
+    *)
+    let from = Vec.mk 3. 3. 2.
+    and _to  = Vec.mk 0. 0. ~-.1. in
+    let dist_to_focus = Vec.len (Vec.sub from _to) in
+    let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 2.0 dist_to_focus in
     let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
     iter_image (fun x y _ ->
         sample_ray (float x) (float y)

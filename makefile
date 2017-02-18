@@ -1,7 +1,7 @@
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 opt:
-	$(OCAMLBUILD) -I src src/main.native
+	$(OCAMLBUILD) -cflags -annot,-bin-annot -I src src/main.native
 
 dbg:
 	$(OCAMLBUILD) -cflags -annot,-bin-annot -I src src/main.d.byte

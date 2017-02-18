@@ -1,19 +1,34 @@
 open Vec
+open Rand
 
 let pi = 4.0 *. atan 1.0
 
 type camera = {
-    lower_left : Vec.t;
-    horizontal : Vec.t;
-    vertical   : Vec.t;
-    origin     : Vec.t;
+    lower_left  : Vec.t;
+    horizontal  : Vec.t;
+    vertical    : Vec.t;
+    origin      : Vec.t;
+    u           : Vec.t;
+    v           : Vec.t;
+    w           : Vec.t;
+    lens_radius : float;
 }
 
+let rec rand_in_unit_disk () =
+    let p = Vec.sub {x=2.0*.randf();y=2.0*.randf();z=0.} {x=1.;y=1.;z=0.} in
+    if Vec.dot p p >= 1. then
+        rand_in_unit_disk()
+    else
+        p
+;;
+
+(*
 let default_camera = {
-    lower_left = {x = -2.; y = -1.; z = -1.};
-    horizontal = {x =  4.; y =  0.; z =  0.};
-    vertical   = {x =  0.; y =  2.; z =  0.};
-    origin     = Vec.zero;
+    lower_left  = {x = -2.; y = -1.; z = -1.};
+    horizontal  = {x =  4.; y =  0.; z =  0.};
+    vertical    = {x =  0.; y =  2.; z =  0.};
+    origin      = Vec.zero;
+    lens_radius = 0.0;
 }
 
 let from_vfov_aspect vfov aspect =
@@ -24,10 +39,12 @@ let from_vfov_aspect vfov aspect =
       horizontal = {x = 2.0*.half_width; y = 0.; z = 0.};
       vertical = {x = 0.; y = 2.0*.half_height; z = 0.};
       origin = Vec.zero;
+      lens_radius = 0.0;
     }
 ;;
+*)
 
-let look_at from at vup vfov aspect =
+let look_at from at vup vfov aspect aperature focus_dist =
     let theta = vfov *. pi /. 180. in
     let half_height = tan (theta /. 2.) in
     let half_width = aspect *. half_height in
@@ -35,17 +52,24 @@ let look_at from at vup vfov aspect =
     let u = Vec.norm (Vec.cross vup w) in
     let v = Vec.cross w u in
     let origin = from in
-    let lower_left = Vec.sub (Vec.sub (Vec.sub origin (Vec.s_mult half_width u)) (Vec.s_mult half_height v)) w in
-    let horizontal = Vec.s_mult (2. *. half_width) u
-    and vertical = Vec.s_mult (2. *. half_height) v in
+    let lower_left = Vec.sub (Vec.sub (Vec.sub origin (Vec.s_mult (half_width*.focus_dist) u)) (Vec.s_mult (half_height*.focus_dist) v)) (Vec.s_mult focus_dist w) in
+    let horizontal = Vec.s_mult (2. *. half_width *. focus_dist) u
+    and vertical = Vec.s_mult (2. *. half_height *. focus_dist) v in
     { lower_left;
       horizontal;
       vertical;
       origin;
+      u;
+      v;
+      w;
+      lens_radius = aperature /. 2.0;
     }
 ;;
 
-let get_ray camera u v = {
-    Ray.origin = camera.origin;
-    Ray.dir = sub (add camera.lower_left (add (s_mult u camera.horizontal) (s_mult v camera.vertical))) camera.origin;
-}
+let get_ray camera u v = 
+    let rd = s_mult camera.lens_radius (rand_in_unit_disk()) in
+    let offset = add (s_mult rd.x camera.u) (s_mult rd.y camera.v) in
+    { Ray.origin = add camera.origin offset;
+      Ray.dir = sub (sub (add camera.lower_left (add (s_mult u camera.horizontal) (s_mult v camera.vertical))) camera.origin) offset;
+    }
+;;
