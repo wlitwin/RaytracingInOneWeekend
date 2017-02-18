@@ -5,8 +5,9 @@ type t = {
 }
 
 let zero = {x=0.;y=0.;z=0.}
+let one = {x=1.;y=1.;z=1.}
 
-let mk v = {x=v;y=v;z=v}
+let mk x y z = {x=x;y=y;z=z}
 
 let op f {x;y;z} = {
     x = f x;
@@ -34,7 +35,7 @@ let dot {x=x1;y=y1;z=z1} {x=x2;y=y2;z=z2} =
 
 let len v = sqrt (dot v v)
 
-let len2 = dot
+let len2 v = dot v v
 
 let norm ({x;y;z} as v) =
     let l = len v in
@@ -64,3 +65,6 @@ let cross {x=x1;y=y1;z=z1} {x=x2;y=y2;z=z2} = {
     y = -.(x1 *. z2 -. z1 *. x2);
     z = x1 *. y2 -. y1 *. x2;
 }
+
+let reflect v n = sub v (s_mult (2. *. (dot v n)) n)
+

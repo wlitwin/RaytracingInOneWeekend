@@ -51,3 +51,14 @@ let iter_image f image =
         done
     done
 ;;
+
+let randf () = Random.float 0.99999999999999
+
+let rec random_in_unit_sphere () =
+    let open Vec in
+    let p = {x=2.0*randf(); y=2.0*randf(); z=2.0*randf()} -. {x=1.;y=1.;z=1.} in
+    if len2 p >= 1. then
+        random_in_unit_sphere()
+    else
+        p
+;;

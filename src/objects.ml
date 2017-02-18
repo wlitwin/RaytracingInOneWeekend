@@ -1,18 +1,22 @@
 open Vec
 open Ray
 
+type texture = Lambert of Vec.t (* albedo *)
+             | Metal of Vec.t (* albedo *) * float (* fuzz *)
+
 type hit_record = {
     t : float;
     p : Vec.t;
     normal : Vec.t;
+    material : texture;
 }
 
 type obj =
-    | Sphere of Vec.t * float
+    | Sphere of Vec.t * float * texture 
 
 (* hit : (ray : Ray.t) -> (t_min : float) -> (t_max : float) -> hit_record option *)
 
-let hit_sphere center radius ray t_min t_max : hit_record option =
+let hit_sphere center radius material ray t_min t_max : hit_record option =
     let oc = sub ray.origin center in
     let a = dot ray.dir ray.dir in
     let b = dot oc ray.dir in
@@ -24,14 +28,14 @@ let hit_sphere center radius ray t_min t_max : hit_record option =
             let t = temp in
             let p = Ray.pos ray t in
             let normal = s_div radius (sub p center) in
-            Some {t;p;normal}
+            Some {t;p;normal;material}
         else begin
             let temp = (-.b +. sqrt(b*.b-.a*.c)) /. a in
             if temp < t_max && temp > t_min then
                 let t = temp in
                 let p = Ray.pos ray t in
                 let normal = s_div radius (sub p center) in
-                Some {t;p;normal}
+                Some {t;p;normal;material}
             else 
                 None
         end
@@ -40,7 +44,7 @@ let hit_sphere center radius ray t_min t_max : hit_record option =
 ;;
 
 let hit ray t_min t_max = function
-    | Sphere (center, radius) -> hit_sphere center radius ray t_min t_max
+    | Sphere (center, radius, material) -> hit_sphere center radius material ray t_min t_max
 ;;
 
 let hit_many ray t_min t_max objs =
