@@ -92,10 +92,12 @@ let trace_image start_y stride length chan id =
     let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 1. in
     let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
     let calc_offset i = iadd start_y (imul i stride) in
+    (*
     for i=0 to isub length 1 do
         Printf.printf "id %d covering %d\n" id (calc_offset i);
         flush stdout
     done;
+    *)
     set_image (fun x y ->
         let x = float x
         and y = float (calc_offset y) in
@@ -123,7 +125,9 @@ let read_image_from_children chans =
             and v = input_value chan in
             set_pixel img x y v;
             read_chan chan
-        with _ -> false
+        with _ -> 
+            close_in chan;
+            false
     in
     let rec loop = function
         | [] -> ()
@@ -155,22 +159,29 @@ let spawn_processes num =
             (* Switch to reading mode *)
             read_image_from_children fids
         ) else begin
-            let fid_in, fid_out = pipe() in
+            let p_to_ch_in, p_to_ch_out = pipe() in
+            let ch_to_p_in, ch_to_p_out = pipe() in
             match fork() with
             | x when x < 0 -> Printf.printf "Fork failed\n"; flush _stdout
             | 0 ->
                 Printf.printf "Spawning %d\n" num;
                 flush _stdout;
-                let chan = out_channel_of_descr fid_out in
+                close p_to_ch_in;
+                close ch_to_p_out;
+                let chan = out_channel_of_descr p_to_ch_out in
+                let in_chan = in_channel_of_descr ch_to_p_in in
                 let len = if offset < rem then iadd len 1 else len in
                 output_binary_int chan offset;
                 output_binary_int chan stride;
                 output_binary_int chan num;
                 output_binary_int chan len;
                 close_out chan;
-                spawn_it (isub num 1) (iadd offset 1) (in_channel_of_descr fid_in :: fids)
+                spawn_it (isub num 1) (iadd offset 1) (in_chan :: fids)
             | child ->
-                let chan = in_channel_of_descr fid_in in
+                close p_to_ch_out;
+                close ch_to_p_in;
+                let chan = in_channel_of_descr p_to_ch_in in
+                let out_chan = out_channel_of_descr ch_to_p_out in
                 let offset = input_binary_int chan
                 and stride = input_binary_int chan
                 and id = input_binary_int chan
@@ -178,7 +189,7 @@ let spawn_processes num =
                 close_in chan;
                 Printf.printf "offset %d length %d id %d\n" offset len id;
                 flush _stdout;
-                trace_image offset stride len (out_channel_of_descr fid_out) id;
+                trace_image offset stride len out_chan id;
         end
     in
     spawn_it num 0 []
