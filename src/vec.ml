@@ -9,6 +9,12 @@ let one = {x=1.;y=1.;z=1.}
 
 let mk x y z = {x=x;y=y;z=z}
 
+let init v = {x=v;y=v;z=v}
+
+let gx {x} = x
+let gy {y} = y
+let gz {z} = z
+
 let x = mk 1. 0. 0.
 let y = mk 0. 1. 0.
 let z = mk 0. 0. 1.

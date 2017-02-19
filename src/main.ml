@@ -78,38 +78,34 @@ let rand_scene () =
                       :: lst in
             accume lst (isub count 1)
     in
-    accume [s1;s2;s3;s4] 50
+    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
 ;;
+    
+let objs = rand_scene()
 
-let trace_image start_y length chan id =
+let trace_image start_y stride length chan id =
     let ns = 1000 in
     let img = create_image nx length in
-    let objs = rand_scene() in
     let from = Vec.mk 13. 2. 3.
     and _to  = Vec.zero in
     let dist_to_focus = 10. in
     let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 1. in
     let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
-    Printf.printf "%d starting from (%d, %d) to (%d, %d)\n"
-        id
-        0 start_y 
-        (isub nx 1) (iadd start_y length);
-        flush stdout;
+    let calc_offset i = iadd start_y (imul i stride) in
+    for i=0 to isub length 1 do
+        Printf.printf "id %d covering %d\n" id (calc_offset i);
+        flush stdout
+    done;
     set_image (fun x y ->
         let x = float x
-        and y = float (iadd start_y y) in
-        (*
-        if x = 0. then (
-            Printf.printf "%d On row %f\n" id y;
-            flush stdout);
-            *)
+        and y = float (calc_offset y) in
         sample_ray x y |> op sqrt
     ) img;
     Printf.printf "%d dumping data\n" id;
     flush stdout;
     iter_image (fun x y pixel ->
         output_binary_int chan x; 
-        output_binary_int chan (iadd start_y y); 
+        output_binary_int chan (calc_offset y); 
         output_value chan pixel;
     ) img;
     Printf.printf "%d done closing\n" id;
@@ -146,8 +142,12 @@ let _stdout = stdout
 
 let spawn_processes num =
     let open Unix in
-    let dt = idiv ny num in
+    let num = if num > ny then ny else num in
+    let len = idiv ny num in
+    let stride = num in
+    let rem = ny mod stride in
     Printf.printf "About to spawn\n";
+    flush _stdout;
     let rec spawn_it num offset fids =
         if num <= 0 then (
             Printf.printf "Reading mode\n";
@@ -155,34 +155,30 @@ let spawn_processes num =
             (* Switch to reading mode *)
             read_image_from_children fids
         ) else begin
-            Printf.printf "Spawning begin\n";
-            flush _stdout;
             let fid_in, fid_out = pipe() in
             match fork() with
             | x when x < 0 -> Printf.printf "Fork failed\n"; flush _stdout
             | 0 ->
                 Printf.printf "Spawning %d\n" num;
                 flush _stdout;
-                (* Tell the child their bounds *)
                 let chan = out_channel_of_descr fid_out in
-                let dt = if num = 1 then isub (isub ny offset) 1 else dt in
+                let len = if offset < rem then iadd len 1 else len in
                 output_binary_int chan offset;
+                output_binary_int chan stride;
                 output_binary_int chan num;
-                output_binary_int chan dt;
+                output_binary_int chan len;
                 close_out chan;
-                spawn_it (isub num 1) (iadd offset dt) (in_channel_of_descr fid_in :: fids)
+                spawn_it (isub num 1) (iadd offset 1) (in_channel_of_descr fid_in :: fids)
             | child ->
-                (* Read which child we are *)
-                Printf.printf "Child %d\n" child;
-                flush _stdout;
                 let chan = in_channel_of_descr fid_in in
                 let offset = input_binary_int chan
+                and stride = input_binary_int chan
                 and id = input_binary_int chan
-                and dt = input_binary_int chan in
+                and len = input_binary_int chan in
                 close_in chan;
-                Printf.printf "Got value %d %d %d\n" offset dt id;
+                Printf.printf "offset %d length %d id %d\n" offset len id;
                 flush _stdout;
-                trace_image offset dt (out_channel_of_descr fid_out) id;
+                trace_image offset stride len (out_channel_of_descr fid_out) id;
         end
     in
     spawn_it num 0 []
