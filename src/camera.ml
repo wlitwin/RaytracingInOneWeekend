@@ -1,8 +1,6 @@
 open Vec
 open Rand
 
-let pi = 4.0 *. atan 1.0
-
 type camera = {
     lower_left  : Vec.t;
     horizontal  : Vec.t;

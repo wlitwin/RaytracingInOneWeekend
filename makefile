@@ -9,6 +9,12 @@ dbg:
 prof:
 	$(OCAMLBUILD) -cflags -annot,-bin-annot -pkg unix -I src src/main.p.native
 
+perf:
+	sudo perf record -g --call-graph=dwarf ./main.native 0
+
+report:
+	sudo perf report -G --tui
+
 test: all
 	$(OCAMLBUILD) -pkg oUnit -Is src,test test/test.native
 	./test.native

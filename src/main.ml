@@ -6,7 +6,7 @@ open Objects
 open Texture
 
 let rec shoot_ray ray objs depth : Vec.t =
-    match hit_many ray 0.001 max_float objs with
+    match hit_many (ray, 0.001, max_float, objs) with
     | Some hit_rec -> 
             if depth < 50 then
                 match scatter ray hit_rec with
@@ -77,8 +77,8 @@ let rand_scene () =
     [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
 ;;
     
-let nx = 1200
-let ny = 800
+let nx = 200
+let ny = 100
 let objs = rand_scene()
 let ns = 1000
 let from = Vec.mk 13. 2. 3.
@@ -86,7 +86,6 @@ let _to  = Vec.zero
 let dist_to_focus = 10.
 let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 0.
 let sample_ray = sample_ray camera objs ns (float nx) (float ny)
-
 
 let trace_image start_y stride length chan id =
     let img = create_image nx length in

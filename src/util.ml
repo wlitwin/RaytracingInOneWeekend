@@ -68,7 +68,22 @@ let schlick cosine ref_idx =
     r0 + (1. - r0) * ((1. - cosine) ** 5.)
 ;;
 
-let rec random_in_unit_sphere () =
+let almost_pi = pi * 0.99999999999999999999999999999
+
+(*
+let random_in_unit_sphere () : Vec.t =
+    let lambda = randf() ** 0.33333333333333333333333333333 in
+    let theta = randf() * 2. * almost_pi in
+    let u = randf() * 2. - 1. in
+    let lamb_sqrt_u = lambda * sqrt (1. - (u * u)) in
+    let open Vec in
+    {x = lamb_sqrt_u * cos theta;
+     y = lamb_sqrt_u * sin theta;
+     z = lambda * u}
+;;
+*)
+
+let rec random_in_unit_sphere () : Vec.t =
     let open Vec in
     let p = {x=2.0*randf(); y=2.0*randf(); z=2.0*randf()} -. {x=1.;y=1.;z=1.} in
     if len2 p >= 1. then
