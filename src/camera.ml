@@ -12,6 +12,8 @@ type camera = {
     v           : Vec.t;
     w           : Vec.t;
     lens_radius : float;
+    time0       : float;
+    time1       : float;
 }
 
 let rec rand_in_unit_disk () =
@@ -44,7 +46,7 @@ let from_vfov_aspect vfov aspect =
 ;;
 *)
 
-let look_at from at vup vfov aspect aperature focus_dist =
+let look_at from at vup vfov aspect aperature focus_dist time0 time1 =
     let theta = vfov *. pi /. 180. in
     let half_height = tan (theta /. 2.) in
     let half_width = aspect *. half_height in
@@ -63,6 +65,8 @@ let look_at from at vup vfov aspect aperature focus_dist =
       v;
       w;
       lens_radius = aperature /. 2.0;
+      time0;
+      time1;
     }
 ;;
 
@@ -71,5 +75,6 @@ let get_ray camera u v =
     let offset = add (s_mult rd.x camera.u) (s_mult rd.y camera.v) in
     { Ray.origin = add camera.origin offset;
       Ray.dir = sub (sub (add camera.lower_left (add (s_mult u camera.horizontal) (s_mult v camera.vertical))) camera.origin) offset;
+      Ray.time = camera.time0 +. (randf() *. (camera.time1 -. camera.time0));
     }
 ;;

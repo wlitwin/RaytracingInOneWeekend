@@ -4,15 +4,16 @@ open Objects
 (* scatter : Ray.t -> hit_record -> (Vec.t attenuation * Ray.t scattered) option *)
 
 let scatter_lambert (albedo : Vec.t) (ray : Ray.t) (hit_rec : Objects.hit_record) =
+    let open Ray in
     let target = hit_rec.p +. hit_rec.normal +. random_in_unit_sphere() in
-    let scattered = Ray.mk hit_rec.p (target -. hit_rec.p) in
+    let scattered = Ray.mkt hit_rec.p (target -. hit_rec.p) ray.time in
     Some (albedo, scattered)
 ;;
 
 let scatter_metal (albedo : Vec.t) (fuzz : float) (ray : Ray.t) (hit_rec : Objects.hit_record) =
     let open Ray in
     let reflected = Vec.reflect (Vec.norm ray.dir) hit_rec.normal in
-    let scattered = Ray.mk hit_rec.p (reflected +. (Vec.s_mult fuzz (random_in_unit_sphere()))) in
+    let scattered = Ray.mkt hit_rec.p (reflected +. (Vec.s_mult fuzz (random_in_unit_sphere()))) ray.time in
     if Vec.dot scattered.dir hit_rec.normal > 0. then
         Some (albedo, scattered)
     else 
@@ -39,13 +40,13 @@ let scatter_dielectric (ref_idx : float) (ray : Ray.t) (hit_rec : Objects.hit_re
     in
     if randf() < reflect_prob then (
         let reflected = Vec.reflect ray.dir hit_rec.normal in
-        Some (attenuation, Ray.mk hit_rec.p reflected) 
+        Some (attenuation, Ray.mkt hit_rec.p reflected ray.time) 
     ) else (
-        Some (attenuation, Ray.mk hit_rec.p refracted)
+        Some (attenuation, Ray.mkt hit_rec.p refracted ray.time)
     )
 ;;
 
-let scatter ray hit_rec =
+let scatter (ray : Ray.t) (hit_rec : Objects.hit_record) : (Vec.t * Ray.t) option =
     match hit_rec.material with
     | Lambert albedo -> scatter_lambert albedo ray hit_rec
     | Metal (albedo, fuzz) -> 

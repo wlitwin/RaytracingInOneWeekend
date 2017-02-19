@@ -5,8 +5,8 @@ open Ray
 open Objects
 open Texture
 
-let nx = 1000
-let ny = 500
+let nx = 200
+let ny = 100
 
 let rec shoot_ray ray objs depth : Vec.t =
     match hit_many ray 0.001 max_float objs with
@@ -55,11 +55,26 @@ let rand_scene () =
                     | x when x < 0.66 -> Metal (rand_color(), randf())
                     | x -> Dielectric (randf() * 4.)
             in
+            (*
             let lst = Sphere (Vec.mk (randf() * 10. - 5.)
                              (randf() * 0.125 + 0.125)
                              (randf() * 10. - 5.),
                              (randf() * 0.15 + 0.05), 
                              mat) 
+                             *)
+            let lst = 
+                let center0 = Vec.mk (randf() * 10. - 5.)
+                                     (randf() * 0.125 + 0.125)
+                                     (randf() * 10. - 5.)
+                in
+                MovingSphere {
+                    center0;
+                    center1=center0 +^ Vec.mk 0. 0.5 0.;
+                    time0=0.;
+                    time1=1.;
+                    radius=randf() * 0.15 + 0.05;
+                    material=mat;
+                }
                       :: lst in
             accume lst (isub count 1)
     in
@@ -70,10 +85,10 @@ let trace_image start_y length chan id =
     let ns = 1000 in
     let img = create_image nx length in
     let objs = rand_scene() in
-    let from = Vec.mk 0. 1. 4.
-    and _to  = Vec.mk 0. 1. 0. in
-    let dist_to_focus = Vec.len (Vec.sub from _to) in
-    let camera = Camera.look_at from _to Vec.y 90. (float nx / float ny) 0.0 dist_to_focus in
+    let from = Vec.mk 13. 2. 3.
+    and _to  = Vec.zero in
+    let dist_to_focus = 10. in
+    let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 1. in
     let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
     Printf.printf "%d starting from (%d, %d) to (%d, %d)\n"
         id

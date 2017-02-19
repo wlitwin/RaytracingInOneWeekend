@@ -12,8 +12,22 @@ type hit_record = {
     material : texture;
 }
 
+type mov_rec = {
+    center0  : Vec.t;
+    center1  : Vec.t;
+    time0    : float;
+    time1    : float;
+    radius   : float;
+    material : texture;
+}
+
 type obj =
     | Sphere of Vec.t * float * texture 
+    | MovingSphere of mov_rec
+
+let move_sphere_center {center0;center1;time0;time1} time =
+    center0 +^ ((time -. time0) /. (time1 -. time0)) *^ (center1 -^ center0)
+;;
 
 (* hit : (ray : Ray.t) -> (t_min : float) -> (t_max : float) -> hit_record option *)
 
@@ -44,8 +58,14 @@ let hit_sphere center radius material ray t_min t_max : hit_record option =
         None
 ;;
 
+let hit_moving_sphere mov_rec ray t_min t_max : hit_record option =
+    let center = move_sphere_center mov_rec ray.time in
+    hit_sphere center mov_rec.radius mov_rec.material ray t_min t_max
+;;
+
 let hit ray t_min t_max = function
     | Sphere (center, radius, material) -> hit_sphere center radius material ray t_min t_max
+    | MovingSphere mov_rec -> hit_moving_sphere mov_rec ray t_min t_max
 ;;
 
 let hit_many ray t_min t_max objs =

@@ -80,3 +80,9 @@ let refract v n ni_over_nt =
         Some (sub (s_mult ni_over_nt (sub uv (s_mult dt n))) (s_mult (sqrt discriminant) n))
     else
         None
+;;
+
+let ( +^ ) = add
+let ( -^ ) = sub
+let ( /^ ) = s_div
+let ( *^ ) = s_mult
