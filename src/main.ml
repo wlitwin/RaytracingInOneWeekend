@@ -74,11 +74,11 @@ let rand_scene () =
                       :: lst in
             accume lst (isub count 1)
     in
-    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 1)]
+    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
 ;;
     
-let nx = 200
-let ny = 100
+let nx = 1200
+let ny = 800
 let objs = rand_scene()
 let ns = 1000
 let from = Vec.mk 13. 2. 3.
@@ -204,5 +204,16 @@ let single_threaded () =
     write_ppm img "out.ppm"
 ;;
 
-(*let _ = spawn_processes 7*)
-let _ = single_threaded ()
+let _ =
+    let default_procs = 4 in
+    let num_procs =
+        if Array.length Sys.argv > 1 then
+            try
+                int_of_string Sys.argv.(1)
+            with _ -> default_procs
+        else default_procs
+    in
+    if num_procs > 0 then
+        spawn_processes num_procs
+    else
+        single_threaded ()
