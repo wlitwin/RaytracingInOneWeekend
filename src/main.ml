@@ -5,6 +5,9 @@ open Ray
 open Objects
 open Texture
 
+let nx = 1000
+let ny = 500
+
 let rec shoot_ray ray objs depth : Vec.t =
     match hit_many ray 0.001 max_float objs with
     | Some hit_rec -> 
@@ -35,32 +38,139 @@ let sample_ray camera objs (samps : int) (w : float) (h : float) x y =
     s_div (float samps) color
 ;;
 
-let _ =
-    let nx = 200
-    and ny = 100
-    and ns = 100 in
-    let img = create_image nx ny in
-    let s1 = Sphere ({x=0.;y=0.;z= -1.}, 0.5, Lambert (Vec.mk 0.8 0.3 0.3))
-    and s2 = Sphere ({x=0.;y= -100.5;z= -1.}, 100., Lambert (Vec.mk 0.8 0.8 0.0))
-    and s3 = Sphere ({x=1.;y=0.;z= -1.}, 0.5, Metal (Vec.mk 0.8 0.6 0.2, 0.3))
-    and s4 = Sphere ({x= -1.;y= 0.;z= -1.}, 0.5, Dielectric 1.5)(*Metal (Vec.mk 0.8 0.8 0.8, 1.0))*) in
-    let objs = [s1;s2;s3;s4] in
-    (*
-    let r = cos(Camera.pi / 4.) in
-    let s1 = Sphere ({x= ~-.r; y=0.; z= ~-.1.}, r, Lambert (Vec.mk 0. 0. 1.))
-    and s2 = Sphere ({x=  r; y=0.; z= ~-.1.}, r, Lambert (Vec.mk 1. 0. 0.)) in
-    let objs = [s1;s2] in
-    *)
-    let from = Vec.mk 3. 3. 2.
-    and _to  = Vec.mk 0. 0. ~-.1. in
+let rand_color() =
+    Vec.mk (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2)
+;;
+
+let rand_scene () =
+    let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Vec.mk 0.5 0.5 0.5))
+    and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (Vec.mk 0.8 0.8 0.0))
+    and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
+    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Dielectric 1.5) in
+    let rec accume lst count =
+        if count <= 0 then lst
+        else
+            let mat = match randf() with
+                    | x when x < 0.33 -> Lambert (rand_color())
+                    | x when x < 0.66 -> Metal (rand_color(), randf())
+                    | x -> Dielectric (randf() * 4.)
+            in
+            let lst = Sphere (Vec.mk (randf() * 10. - 5.)
+                             (randf() * 0.125 + 0.125)
+                             (randf() * 10. - 5.),
+                             (randf() * 0.15 + 0.05), 
+                             mat) 
+                      :: lst in
+            accume lst (isub count 1)
+    in
+    accume [s1;s2;s3;s4] 50
+;;
+
+let trace_image start_y length chan id =
+    let ns = 1000 in
+    let img = create_image nx length in
+    let objs = rand_scene() in
+    let from = Vec.mk 0. 1. 4.
+    and _to  = Vec.mk 0. 1. 0. in
     let dist_to_focus = Vec.len (Vec.sub from _to) in
-    let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 2.0 dist_to_focus in
+    let camera = Camera.look_at from _to Vec.y 90. (float nx / float ny) 0.0 dist_to_focus in
     let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
-    iter_image (fun x y _ ->
-        sample_ray (float x) (float y)
-        |> op sqrt
-        |> vec_to_color 
-        |> set_pixel img x y
+    Printf.printf "%d starting from (%d, %d) to (%d, %d)\n"
+        id
+        0 start_y 
+        (isub nx 1) (iadd start_y length);
+        flush stdout;
+    set_image (fun x y ->
+        let x = float x
+        and y = float (iadd start_y y) in
+        (*
+        if x = 0. then (
+            Printf.printf "%d On row %f\n" id y;
+            flush stdout);
+            *)
+        sample_ray x y |> op sqrt
     ) img;
+    Printf.printf "%d dumping data\n" id;
+    flush stdout;
+    iter_image (fun x y pixel ->
+        output_binary_int chan x; 
+        output_binary_int chan (iadd start_y y); 
+        output_value chan pixel;
+    ) img;
+    Printf.printf "%d done closing\n" id;
+    flush stdout;
+    flush chan;
+    close_out chan;
+;;
+
+let read_image_from_children chans =
+    let img = create_image nx ny in
+    let rec read_chan chan = 
+        try 
+            let x = input_binary_int chan
+            and y = input_binary_int chan
+            and v = input_value chan in
+            set_pixel img x y v;
+            read_chan chan
+        with _ -> false
+    in
+    let rec loop = function
+        | [] -> ()
+        | chans ->
+            chans
+            |> List.map (fun chan -> (chan, read_chan chan))
+            |> List.filter snd
+            |> List.map fst
+            |> loop
+    in
+    loop chans;
     write_ppm img "out.ppm"
 ;;
+
+let _stdout = stdout
+
+let spawn_processes num =
+    let open Unix in
+    let dt = idiv ny num in
+    Printf.printf "About to spawn\n";
+    let rec spawn_it num offset fids =
+        if num <= 0 then (
+            Printf.printf "Reading mode\n";
+            flush _stdout;
+            (* Switch to reading mode *)
+            read_image_from_children fids
+        ) else begin
+            Printf.printf "Spawning begin\n";
+            flush _stdout;
+            let fid_in, fid_out = pipe() in
+            match fork() with
+            | x when x < 0 -> Printf.printf "Fork failed\n"; flush _stdout
+            | 0 ->
+                Printf.printf "Spawning %d\n" num;
+                flush _stdout;
+                (* Tell the child their bounds *)
+                let chan = out_channel_of_descr fid_out in
+                let dt = if num = 1 then isub (isub ny offset) 1 else dt in
+                output_binary_int chan offset;
+                output_binary_int chan num;
+                output_binary_int chan dt;
+                close_out chan;
+                spawn_it (isub num 1) (iadd offset dt) (in_channel_of_descr fid_in :: fids)
+            | child ->
+                (* Read which child we are *)
+                Printf.printf "Child %d\n" child;
+                flush _stdout;
+                let chan = in_channel_of_descr fid_in in
+                let offset = input_binary_int chan
+                and id = input_binary_int chan
+                and dt = input_binary_int chan in
+                close_in chan;
+                Printf.printf "Got value %d %d %d\n" offset dt id;
+                flush _stdout;
+                trace_image offset dt (out_channel_of_descr fid_out) id;
+        end
+    in
+    spawn_it num 0 []
+;;
+
+let _ = spawn_processes 7

@@ -26,7 +26,7 @@ let red = { r=1.; g=0.; b=0. }
 let green = { r=0.; g=1.; b=0. }
 let blue = { r=0.; g=0.; b=1. }
 
-type image = color array array
+type image = Vec.t array array
 
 let vec_to_color {Vec.x;y;z} = {r=x;g=y;b=z}
 
@@ -35,7 +35,7 @@ let set_pixel image x y v =
 ;;
 
 let create_image sx sy : image =
-    Array.init sy (fun _ -> (Array.make sx black))
+    Array.init sy (fun _ -> (Array.make sx Vec.zero))
 ;;
 
 let width image =
@@ -44,6 +44,14 @@ let width image =
 
 let height image =
     Array.length image
+;;
+
+let set_image f image =
+    for y=isub (height image) 1 downto 0 do
+        for x=0 to isub (width image) 1 do
+            image.(y).(x) <- f x y 
+        done
+    done
 ;;
 
 let iter_image f image =

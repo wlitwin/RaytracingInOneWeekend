@@ -1,10 +1,10 @@
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 opt:
-	$(OCAMLBUILD) -cflags -annot,-bin-annot -I src src/main.native
+	$(OCAMLBUILD) -cflags -annot,-bin-annot -pkg unix -I src src/main.native
 
 dbg:
-	$(OCAMLBUILD) -cflags -annot,-bin-annot -I src src/main.d.byte
+	$(OCAMLBUILD) -cflags -annot,-bin-annot -pkg unix -I src src/main.d.byte
 
 test: all
 	$(OCAMLBUILD) -pkg oUnit -Is src,test test/test.native
