@@ -5,9 +5,6 @@ open Ray
 open Objects
 open Texture
 
-let nx = 200
-let ny = 100
-
 let rec shoot_ray ray objs depth : Vec.t =
     match hit_many ray 0.001 max_float objs with
     | Some hit_rec -> 
@@ -37,7 +34,6 @@ let sample_ray camera objs (samps : int) (w : float) (h : float) x y =
     let color = loop samps Vec.zero in
     s_div (float samps) color
 ;;
-
 let rand_color() =
     Vec.mk (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2)
 ;;
@@ -78,26 +74,29 @@ let rand_scene () =
                       :: lst in
             accume lst (isub count 1)
     in
-    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
+    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 1)]
 ;;
     
+let nx = 200
+let ny = 100
 let objs = rand_scene()
+let ns = 1000
+let from = Vec.mk 13. 2. 3.
+let _to  = Vec.zero
+let dist_to_focus = 10.
+let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 0.
+let sample_ray = sample_ray camera objs ns (float nx) (float ny)
+
 
 let trace_image start_y stride length chan id =
-    let ns = 1000 in
     let img = create_image nx length in
-    let from = Vec.mk 13. 2. 3.
-    and _to  = Vec.zero in
-    let dist_to_focus = 10. in
-    let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 1. in
-    let sample_ray = sample_ray camera objs ns (float nx) (float ny) in
-    let calc_offset i = iadd start_y (imul i stride) in
     (*
     for i=0 to isub length 1 do
         Printf.printf "id %d covering %d\n" id (calc_offset i);
         flush stdout
     done;
     *)
+    let calc_offset i = iadd start_y (imul i stride) in
     set_image (fun x y ->
         let x = float x
         and y = float (calc_offset y) in
@@ -195,4 +194,15 @@ let spawn_processes num =
     spawn_it num 0 []
 ;;
 
-let _ = spawn_processes 7
+let single_threaded () =
+    let img = create_image nx ny in
+    set_image (fun x y ->
+        let x = float x
+        and y = float y in
+        sample_ray x y |> op sqrt
+    ) img;
+    write_ppm img "out.ppm"
+;;
+
+(*let _ = spawn_processes 7*)
+let _ = single_threaded ()
