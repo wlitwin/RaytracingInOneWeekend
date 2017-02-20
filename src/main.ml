@@ -63,9 +63,9 @@ let rand_scene () =
     let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
                            ConstantColor (Vec.mk 0.9 0.9 0.9)) in
     let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Noise 5.))
-    and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (ConstantColor (Vec.mk 0.8 0.8 0.0)))
-    and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
-    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Light (ConstantColor (Vec.mk 0.8 0.2 0.1))) in
+    and s2 = Sphere ({x=0.;y= 2.;z= 0.}, 2., Lambert (Noise 5.))
+    and s4 = Sphere ({x= 0.0;y= 7.;z= 0.}, 2., Light (ConstantColor (Vec.init 2.)))
+    and r1 = XY_Rect {x0=3.;x1=5.;y0=1.;y1=3.;k= ~-.2.;material=Light (ConstantColor (Vec.mk 4. 0. 0.))} in
     let rec accume lst count =
         if count <= 0 then lst
         else
@@ -97,14 +97,14 @@ let rand_scene () =
                       :: lst in
             accume lst (isub count 1)
     in
-    [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
+    [build_bvh 0. 1. (accume [s1;s2;s4;r1] 1)]
 ;;
     
 let objs = rand_scene()
-let from = Vec.mk 13. 2. 3.
-let _to  = Vec.zero
+let from = Vec.mk 7. 2. 7.
+let _to  = Vec.mk 0. 1. 0.
 let dist_to_focus = 10.
-let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 0.
+let camera = Camera.look_at from _to Vec.y 70. (float nx / float ny) 0.0 dist_to_focus 0. 0.
 let sample_ray = sample_ray (camera, objs, ns)
 
 let trace_image start_y stride length chan id =

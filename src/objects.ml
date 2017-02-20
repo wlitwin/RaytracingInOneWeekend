@@ -30,10 +30,20 @@ type mov_rec = {
     material : material;
 }
 
+type xy_rec = {
+    x0 : float;
+    y0 : float;
+    x1 : float;
+    y1 : float;
+    k  : float;
+    material : material;
+}
+
 type obj =
     | Sphere of Vec.t * float * material 
     | MovingSphere of mov_rec
     | BoundingVolume of Aabb.t * obj * obj
+    | XY_Rect of xy_rec
 
 let move_sphere_center ({center0;center1;time0;time1}, time) =
     center0 +^ ((time -. time0) /. (time1 -. time0)) *^ (center1 -^ center0)
@@ -59,10 +69,16 @@ let aabb_of_moving_sphere mov_rec t0 t1 =
           (aabb_of_sphere c1 mov_rec.radius)
 ;;
 
+let aabb_of_xy_rec {x0;y0;x1;y1;k} = {
+    min = Vec.mk x0 y0 (k -. 0.0001);
+    max = Vec.mk x1 y1 (k +. 0.0001);
+}
+
 let aabb_of_object t0 t1 = function
     | Sphere (center, radius, _) -> aabb_of_sphere center radius
     | MovingSphere mov_rec -> aabb_of_moving_sphere mov_rec t0 t1
     | BoundingVolume (aabb, _, _) -> aabb
+    | XY_Rect xy_rec -> aabb_of_xy_rec xy_rec
 ;;
 
 let hit_aabb (aabb, ray, t_min, t_max) : bool =
@@ -131,6 +147,25 @@ let hit_aabb (aabb, ray, t_min, t_max) : bool =
     *)
 ;;
 
+let hit_xy_rect ({x0;y0;x1;y1;k;material}, ray, t_min, t_max) =
+    let t = (k -. ray.origin.z) /. ray.dir.z in
+    if t < t_min || t > t_max then
+        None
+    else begin
+        let x = ray.origin.x +. t*.ray.dir.x
+        and y = ray.origin.y +. t*.ray.dir.y in
+        if x < x0 || x > x1 || y < y0 || y > y1 then
+            None
+        else begin
+            let u = (x -. x0) /. (x1 -. x0)
+            and v = (y -. y0) /. (y1 -. y0)
+            and normal = Vec.z
+            and p = Ray.pos ray t in
+            Some {t;u;v;p;normal;material}
+        end
+    end
+;;
+
 (* hit : (ray : Ray.t) -> (t_min : float) -> (t_max : float) -> hit_record option *)
 
 let hit_sphere (center, radius, material, ray, t_min, t_max) : hit_record option =
@@ -189,6 +224,7 @@ and hit (ray, t_min, t_max, obj) =
     | Sphere (center, radius, material) -> hit_sphere (center, radius, material, ray, t_min, t_max)
     | MovingSphere mov_rec -> hit_moving_sphere (mov_rec, ray, t_min, t_max)
     | BoundingVolume (aabb, obj_l, obj_r) -> hit_bounding_volume (aabb, obj_l, obj_r, ray, t_min, t_max)
+    | XY_Rect xy_rec -> hit_xy_rect (xy_rec, ray, t_min, t_max)
 ;;
 
 let hit_many (ray, t_min, t_max, objs) =
