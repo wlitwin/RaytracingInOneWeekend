@@ -3,8 +3,9 @@ open Objects
 
 (* scatter : Ray.t -> hit_record -> (Vec.t attenuation * Ray.t scattered) option *)
 
-let noise_texture (u, v, p) =
-    Vec.s_mult (Perlin.noise p) Vec.one
+let noise_texture (scale, u, v, p) =
+    let open Vec in
+    (0.5*(1. + sin(scale*p.z + 10.*(Perlin.turbulance (p, 7))))) *^ Vec.one
 ;;
 
 let rec checker_texture (even, odd, u, v, p) =
@@ -19,7 +20,7 @@ and texture_color (texture, u, v, p) =
     match texture with
     | ConstantColor color -> color
     | Checker (even, odd) -> checker_texture (even, odd, u, v, p)
-    | Noise -> noise_texture (u, v, p)
+    | Noise scale -> noise_texture (scale, u, v, p)
 ;;
 
 let scatter_lambert (albedo, ray, hit_rec) =

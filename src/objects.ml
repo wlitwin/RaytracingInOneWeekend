@@ -4,7 +4,7 @@ open Aabb
 
 type texture = ConstantColor of Vec.t (* color *)
              | Checker of texture (* even *) * texture (* odd *)
-             | Noise
+             | Noise of float (* scale *)
 
 type material = Lambert of texture (* albedo *)
               | Metal of Vec.t (* albedo *) * float (* fuzz *)

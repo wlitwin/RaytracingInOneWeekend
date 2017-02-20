@@ -50,10 +50,10 @@ let rand_color() =
 let rand_scene () =
     let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
                            ConstantColor (Vec.mk 0.9 0.9 0.9)) in
-    let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert Noise)
+    let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Noise 5.))
     and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (ConstantColor (Vec.mk 0.8 0.8 0.0)))
     and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
-    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Dielectric 1.5) in
+    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Lambert (Noise 5.)) in
     let rec accume lst count =
         if count <= 0 then lst
         else
