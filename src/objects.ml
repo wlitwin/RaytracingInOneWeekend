@@ -10,6 +10,7 @@ type texture = ConstantColor of Vec.t (* color *)
 type material = Lambert of texture (* albedo *)
               | Metal of Vec.t (* albedo *) * float (* fuzz *)
               | Dielectric of float (* refraction index *)
+              | Light of texture (* albedo *)
 
 type hit_record = {
     t : float;

@@ -88,6 +88,12 @@ let scatter_dielectric (ref_idx, ray, hit_rec) =
     )
 ;;
 
+let emitted (hit_rec : Objects.hit_record) =
+    match hit_rec.material with
+    | Light albedo -> texture_color (albedo, hit_rec.u, hit_rec.v, hit_rec.p)
+    | _ -> Vec.zero
+;;
+
 let scatter (ray , hit_rec : Ray.t * Objects.hit_record) : (Vec.t * Ray.t) option =
     match hit_rec.material with
     | Lambert albedo -> scatter_lambert (albedo, ray, hit_rec)
@@ -95,4 +101,5 @@ let scatter (ray , hit_rec : Ray.t * Objects.hit_record) : (Vec.t * Ray.t) optio
             let fuzz = if fuzz < 1. then fuzz else 1. in
             scatter_metal (albedo, fuzz, ray, hit_rec)
     | Dielectric ref_idx -> scatter_dielectric (ref_idx, ray, hit_rec)
+    | Light _ -> None
 ;;

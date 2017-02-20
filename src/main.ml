@@ -13,20 +13,24 @@ let fnx = float nx
 let fny = float ny
 let fsamps = float ns
 
-let rec shoot_ray (ray, objs, depth, accum_atten) : Vec.t =
+let rec shoot_ray (ray, objs, depth) : Vec.t =
     match hit_many (ray, 0.001, max_float, objs) with
     | Some hit_rec -> 
+            let light = emitted hit_rec in
             if depth < 50 then
                 match scatter (ray, hit_rec) with
                 | Some (attenuation, scattered) ->
-                    shoot_ray (scattered, objs, (iadd depth 1), attenuation *. accum_atten)
-                | None -> Vec.zero
+                    light +. attenuation *. (shoot_ray (scattered, objs, (iadd depth 1)))
+                | None -> light
             else
-                Vec.zero
+                light
     | None ->
+        Vec.zero
+            (*
         let n_dir = norm ray.dir in
         let t : float = 0.5 * (n_dir.y + 1.0) in
         accum_atten *. (add (s_mult (1.0 - t) Vec.one) (s_mult t {x=0.5;y=0.7;z=1.0}))
+*)
 ;;
 
 let sample_ray (camera, objs, samps) (x, y) =
@@ -37,7 +41,7 @@ let sample_ray (camera, objs, samps) (x, y) =
             let u = (x + randf()) / fnx
             and v = (y + randf()) / fny in
             let ray = Camera.get_ray (camera, u, v) in
-            loop (isub n 1) (color +. shoot_ray (ray, objs, 0, Vec.one))
+            loop (isub n 1) (color +. shoot_ray (ray, objs, 0))
     in
     let color = loop samps Vec.zero in
     s_div fsamps color
@@ -61,7 +65,7 @@ let rand_scene () =
     let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Noise 5.))
     and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (ConstantColor (Vec.mk 0.8 0.8 0.0)))
     and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
-    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Lambert image) in
+    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Light (ConstantColor (Vec.mk 0.8 0.2 0.1))) in
     let rec accume lst count =
         if count <= 0 then lst
         else
