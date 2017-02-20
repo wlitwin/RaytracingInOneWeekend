@@ -3,14 +3,34 @@ open Objects
 
 (* scatter : Ray.t -> hit_record -> (Vec.t attenuation * Ray.t scattered) option *)
 
-let scatter_lambert (albedo : Vec.t) (ray : Ray.t) (hit_rec : Objects.hit_record) =
+let noise_texture (u, v, p) =
+    Vec.s_mult (Perlin.noise p) Vec.one
+;;
+
+let rec checker_texture (even, odd, u, v, p) =
+    let open Vec in
+    let sines = sin(10.*p.x) * sin(10.*p.y) * sin(10.*p.z) in
+    if sines < 0. then
+        texture_color (even, u, v, p)
+    else
+        texture_color (odd, u, v, p)
+
+and texture_color (texture, u, v, p) =
+    match texture with
+    | ConstantColor color -> color
+    | Checker (even, odd) -> checker_texture (even, odd, u, v, p)
+    | Noise -> noise_texture (u, v, p)
+;;
+
+let scatter_lambert (albedo, ray, hit_rec) =
     let open Ray in
+    let albedo = texture_color (albedo, 0., 0., hit_rec.p) in
     let target = hit_rec.p +. hit_rec.normal +. random_in_unit_sphere() in
     let scattered = Ray.mkt hit_rec.p (target -. hit_rec.p) ray.time in
     Some (albedo, scattered)
 ;;
 
-let scatter_metal (albedo : Vec.t) (fuzz : float) (ray : Ray.t) (hit_rec : Objects.hit_record) =
+let scatter_metal (albedo, fuzz, ray, hit_rec) =
     let open Ray in
     let reflected = Vec.reflect (Vec.norm ray.dir) hit_rec.normal in
     let scattered = Ray.mkt hit_rec.p (reflected +. (Vec.s_mult fuzz (random_in_unit_sphere()))) ray.time in
@@ -20,7 +40,7 @@ let scatter_metal (albedo : Vec.t) (fuzz : float) (ray : Ray.t) (hit_rec : Objec
         None
 ;;
 
-let scatter_dielectric (ref_idx : float) (ray : Ray.t) (hit_rec : Objects.hit_record) =
+let scatter_dielectric (ref_idx, ray, hit_rec) =
     let open Ray in
     let attenuation = Vec.mk 1. 1. 1. in
     let out_norm, ni_over_nt, cosine =
@@ -46,11 +66,11 @@ let scatter_dielectric (ref_idx : float) (ray : Ray.t) (hit_rec : Objects.hit_re
     )
 ;;
 
-let scatter (ray : Ray.t) (hit_rec : Objects.hit_record) : (Vec.t * Ray.t) option =
+let scatter (ray , hit_rec : Ray.t * Objects.hit_record) : (Vec.t * Ray.t) option =
     match hit_rec.material with
-    | Lambert albedo -> scatter_lambert albedo ray hit_rec
+    | Lambert albedo -> scatter_lambert (albedo, ray, hit_rec)
     | Metal (albedo, fuzz) -> 
             let fuzz = if fuzz < 1. then fuzz else 1. in
-            scatter_metal albedo fuzz ray hit_rec
-    | Dielectric ref_idx -> scatter_dielectric ref_idx ray hit_rec
+            scatter_metal (albedo, fuzz, ray, hit_rec)
+    | Dielectric ref_idx -> scatter_dielectric (ref_idx, ray, hit_rec)
 ;;

@@ -5,49 +5,60 @@ open Ray
 open Objects
 open Texture
 
-let rec shoot_ray ray objs depth : Vec.t =
+let nx = 200
+let ny = 100
+let ns = 1000
+
+let fnx = float nx
+let fny = float ny
+let fsamps = float ns
+
+let rec shoot_ray (ray, objs, depth, accum_atten) : Vec.t =
     match hit_many (ray, 0.001, max_float, objs) with
     | Some hit_rec -> 
             if depth < 50 then
-                match scatter ray hit_rec with
+                match scatter (ray, hit_rec) with
                 | Some (attenuation, scattered) ->
-                    attenuation *. (shoot_ray scattered objs (iadd depth 1))
+                    shoot_ray (scattered, objs, (iadd depth 1), attenuation *. accum_atten)
                 | None -> Vec.zero
             else
                 Vec.zero
     | None ->
         let n_dir = norm ray.dir in
         let t : float = 0.5 * (n_dir.y + 1.0) in
-        (add (s_mult (1.0 - t) Vec.one) (s_mult t {x=0.5;y=0.7;z=1.0}))
+        accum_atten *. (add (s_mult (1.0 - t) Vec.one) (s_mult t {x=0.5;y=0.7;z=1.0}))
 ;;
 
-let sample_ray camera objs (samps : int) (w : float) (h : float) x y =
+let sample_ray (camera, objs, samps) (x, y) =
     let rec loop i color = 
         match i with
         | 0 -> color
         | n ->
-            let u = (x + randf()) / w
-            and v = (y + randf()) / h in
-            let ray = Camera.get_ray camera u v in
-            loop (isub n 1) (color +. shoot_ray ray objs 0)
+            let u = (x + randf()) / fnx
+            and v = (y + randf()) / fny in
+            let ray = Camera.get_ray (camera, u, v) in
+            loop (isub n 1) (color +. shoot_ray (ray, objs, 0, Vec.one))
     in
     let color = loop samps Vec.zero in
-    s_div (float samps) color
+    s_div fsamps color
 ;;
+
 let rand_color() =
     Vec.mk (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2)
 ;;
 
 let rand_scene () =
-    let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Vec.mk 0.5 0.5 0.5))
-    and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (Vec.mk 0.8 0.8 0.0))
+    let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
+                           ConstantColor (Vec.mk 0.9 0.9 0.9)) in
+    let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert Noise)
+    and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (ConstantColor (Vec.mk 0.8 0.8 0.0)))
     and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
     and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Dielectric 1.5) in
     let rec accume lst count =
         if count <= 0 then lst
         else
             let mat = match randf() with
-                    | x when x < 0.33 -> Lambert (rand_color())
+                    | x when x < 0.33 -> Lambert (ConstantColor (rand_color()))
                     | x when x < 0.66 -> Metal (rand_color(), randf())
                     | x -> Dielectric (randf() * 4.)
             in
@@ -77,15 +88,12 @@ let rand_scene () =
     [build_bvh 0. 1. (accume [s1;s2;s3;s4] 50)]
 ;;
     
-let nx = 200
-let ny = 100
 let objs = rand_scene()
-let ns = 1000
 let from = Vec.mk 13. 2. 3.
 let _to  = Vec.zero
 let dist_to_focus = 10.
 let camera = Camera.look_at from _to Vec.y 20. (float nx / float ny) 0.0 dist_to_focus 0. 0.
-let sample_ray = sample_ray camera objs ns (float nx) (float ny)
+let sample_ray = sample_ray (camera, objs, ns)
 
 let trace_image start_y stride length chan id =
     let img = create_image nx length in
@@ -99,7 +107,7 @@ let trace_image start_y stride length chan id =
     set_image (fun x y ->
         let x = float x
         and y = float (calc_offset y) in
-        sample_ray x y |> op sqrt
+        sample_ray (x, y) |> op sqrt
     ) img;
     Printf.printf "%d dumping data\n" id;
     flush stdout;
@@ -198,7 +206,7 @@ let single_threaded () =
     set_image (fun x y ->
         let x = float x
         and y = float y in
-        sample_ray x y |> op sqrt
+        sample_ray (x, y) |> op sqrt
     ) img;
     write_ppm img "out.ppm"
 ;;

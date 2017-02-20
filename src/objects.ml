@@ -2,15 +2,19 @@ open Vec
 open Ray
 open Aabb
 
-type texture = Lambert of Vec.t (* albedo *)
-             | Metal of Vec.t (* albedo *) * float (* fuzz *)
-             | Dielectric of float (* refraction index *)
+type texture = ConstantColor of Vec.t (* color *)
+             | Checker of texture (* even *) * texture (* odd *)
+             | Noise
+
+type material = Lambert of texture (* albedo *)
+              | Metal of Vec.t (* albedo *) * float (* fuzz *)
+              | Dielectric of float (* refraction index *)
 
 type hit_record = {
     t : float;
     p : Vec.t;
     normal : Vec.t;
-    material : texture;
+    material : material;
 }
 
 type mov_rec = {
@@ -19,11 +23,11 @@ type mov_rec = {
     time0    : float;
     time1    : float;
     radius   : float;
-    material : texture;
+    material : material;
 }
 
 type obj =
-    | Sphere of Vec.t * float * texture 
+    | Sphere of Vec.t * float * material 
     | MovingSphere of mov_rec
     | BoundingVolume of Aabb.t * obj * obj
 

@@ -68,7 +68,7 @@ let look_at from at vup vfov aspect aperature focus_dist time0 time1 =
     }
 ;;
 
-let get_ray camera u v = 
+let get_ray (camera, u, v) = 
     let rd = s_mult camera.lens_radius (rand_in_unit_disk()) in
     let offset = add (s_mult rd.x camera.u) (s_mult rd.y camera.v) in
     { Ray.origin = add camera.origin offset;
