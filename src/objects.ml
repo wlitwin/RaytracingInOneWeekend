@@ -5,6 +5,7 @@ open Aabb
 type texture = ConstantColor of Vec.t (* color *)
              | Checker of texture (* even *) * texture (* odd *)
              | Noise of float (* scale *)
+             | Image of Stb_image.int8 Stb_image.t
 
 type material = Lambert of texture (* albedo *)
               | Metal of Vec.t (* albedo *) * float (* fuzz *)
@@ -12,6 +13,8 @@ type material = Lambert of texture (* albedo *)
 
 type hit_record = {
     t : float;
+    u : float;
+    v : float;
     p : Vec.t;
     normal : Vec.t;
     material : material;
@@ -33,6 +36,14 @@ type obj =
 
 let move_sphere_center ({center0;center1;time0;time1}, time) =
     center0 +^ ((time -. time0) /. (time1 -. time0)) *^ (center1 -^ center0)
+;;
+
+let sphere_uv p =
+    let phi = atan2 p.z p.x
+    and theta = asin p.y in
+    let u = 1. -. (phi +. Rand.pi) /. (2. *. Rand.pi)
+    and v = (theta +. Rand.pi /. 2.) /. Rand.pi in
+    u, v
 ;;
 
 let aabb_of_sphere center radius : t = {
@@ -133,14 +144,16 @@ let hit_sphere (center, radius, material, ray, t_min, t_max) : hit_record option
             let t = temp in
             let p = Ray.pos ray t in
             let normal = s_div radius (sub p center) in
-            Some {t;p;normal;material}
+            let u, v = sphere_uv (s_div radius (sub p center)) in
+            Some {t;u;v;p;normal;material}
         else begin
             let temp = (-.b +. sqrt(b*.b-.a*.c)) /. a in
             if temp < t_max && temp > t_min then
                 let t = temp in
                 let p = Ray.pos ray t in
                 let normal = s_div radius (sub p center) in
-                Some {t;p;normal;material}
+                let u, v = sphere_uv (s_div radius (sub p center)) in
+                Some {t;u;v;p;normal;material}
             else 
                 None
         end

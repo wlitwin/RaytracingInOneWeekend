@@ -1,4 +1,4 @@
-open Util
+open Helpers
 open Vec
 
 let write_ppm (image : image) (file : string) : unit =

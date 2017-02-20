@@ -1,4 +1,4 @@
-open Util
+open Helpers
 open Objects
 
 (* scatter : Ray.t -> hit_record -> (Vec.t attenuation * Ray.t scattered) option *)
@@ -6,6 +6,26 @@ open Objects
 let noise_texture (scale, u, v, p) =
     let open Vec in
     (0.5*(1. + sin(scale*p.z + 10.*(Perlin.turbulance (p, 7))))) *^ Vec.one
+;;
+
+let clamp (v, low, high) =
+    (min (max v low) high)
+;;
+
+let image_texture (image, u, v, p) =
+    let open Stb_image in
+    let w, h = image.width, image.height in
+    let i = int_of_float (u * float w)
+    and j = int_of_float ((1. - v) * float h - 0.001) in
+    let i = clamp (i, 0, isub w 1)
+    and j = clamp (j, 0, isub h 1)
+    and ( * ) = imul
+    and ( + ) = iadd in
+    let idx = 3*i +3*image.width*j in
+    let r = (float image.data.{idx + 0}) / 255.0
+    and g = (float image.data.{idx + 1}) / 255.0
+    and b = (float image.data.{idx + 2}) / 255.0 in
+    Vec.mk r g b
 ;;
 
 let rec checker_texture (even, odd, u, v, p) =
@@ -21,11 +41,12 @@ and texture_color (texture, u, v, p) =
     | ConstantColor color -> color
     | Checker (even, odd) -> checker_texture (even, odd, u, v, p)
     | Noise scale -> noise_texture (scale, u, v, p)
+    | Image image -> image_texture (image, u, v, p)
 ;;
 
 let scatter_lambert (albedo, ray, hit_rec) =
     let open Ray in
-    let albedo = texture_color (albedo, 0., 0., hit_rec.p) in
+    let albedo = texture_color (albedo, hit_rec.u, hit_rec.v, hit_rec.p) in
     let target = hit_rec.p +. hit_rec.normal +. random_in_unit_sphere() in
     let scattered = Ray.mkt hit_rec.p (target -. hit_rec.p) ray.time in
     Some (albedo, scattered)

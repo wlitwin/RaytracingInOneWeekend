@@ -1,5 +1,5 @@
-open Util
-open Ppm
+open Helpers
+open Ppm_Utils
 open Vec
 open Ray
 open Objects
@@ -47,13 +47,21 @@ let rand_color() =
     Vec.mk (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2) (randf() * 0.8 + 0.2)
 ;;
 
+let load_image filename =
+    let open Stb_image in
+    match load ~channels:3 filename with
+    | Ok img -> img
+    | Error (`Msg msg) -> failwith msg
+;;
+
 let rand_scene () =
+    let image = Image (load_image "pics/large.png") in
     let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
                            ConstantColor (Vec.mk 0.9 0.9 0.9)) in
     let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Noise 5.))
     and s2 = Sphere ({x=0.;y= 1.;z= 0.}, 1., Lambert (ConstantColor (Vec.mk 0.8 0.8 0.0)))
     and s3 = Sphere ({x= ~-.4.;y= 1.;z= 0.}, 1., Metal (Vec.mk 0.8 0.6 0.2, 0.3))
-    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Lambert (Noise 5.)) in
+    and s4 = Sphere ({x=4.;y= 1.;z= 0.}, 1., Lambert image) in
     let rec accume lst count =
         if count <= 0 then lst
         else
