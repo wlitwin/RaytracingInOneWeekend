@@ -5,9 +5,9 @@ open Ray
 open Objects
 open Texture
 
-let nx = 200
-let ny = 100
-let ns = 1000
+let nx = 800
+let ny = 400
+let ns = 6000
 
 let fnx = float nx
 let fny = float ny
@@ -59,6 +59,7 @@ let load_image filename =
 ;;
 
 let rand_scene () =
+    (*
     let image = Image (load_image "pics/large.png") in
     let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
                            ConstantColor (Vec.mk 0.9 0.9 0.9)) in
@@ -98,13 +99,35 @@ let rand_scene () =
             accume lst (isub count 1)
     in
     [build_bvh 0. 1. (accume [s1;s2;s4;r1] 1)]
+*)
+    let red = Lambert (ConstantColor (Vec.mk 0.65 0.05 0.05))
+    and white = Lambert (ConstantColor (Vec.init 0.73))
+    and green = Lambert (ConstantColor (Vec.mk 0.12 0.45 0.15))
+    and light = Light (ConstantColor (Vec.init 15.))
+    and smoke1 = Isotropic (ConstantColor (Vec.init 1.))
+    and smoke2 = Isotropic (ConstantColor (Vec.init 0.)) in
+    let r1 = Flip (YZ_Rect {y0=0.;y1=555.;z0=0.;z1=555.;k=555.;material=green})
+    and r2 = YZ_Rect {y0=0.;y1=555.;z0=0.;z1=555.;k=0.;material=red}
+    and r3 = XZ_Rect {x0=213.;x1=343.;z0=227.;z1=332.;k=554.;material=light}
+    and r4 = Flip (XZ_Rect {x0=0.;x1=555.;z0=0.;z1=555.;k=555.;material=white})
+    and r5 = XZ_Rect {x0=0.;x1=555.;z0=0.;z1=555.;k=0.;material=white}
+    and r6 = Flip (XY_Rect {x0=0.;x1=555.;y0=0.;y1=555.;k=555.;material=white})
+    and b1 = mk_box (Vec.mk 0. 0. 0., Vec.mk 165. 165. 165., white)
+    and b2 = mk_box (Vec.mk 0. 0. 0., Vec.mk 165. 330. 165., white) in
+    let b1 = Translate (make_y_rot ~-.18. b1, Vec.mk 130. 0. 65.)
+    and b2 = Translate (make_y_rot   15. b2, Vec.mk 265. 0. 295.) in
+    let b1 = ConstantMedium (smoke1, 0.01, b1)
+    and b2 = ConstantMedium (smoke2, 0.01, b2) in
+    [build_bvh 0. 1. [r1;r2;r3;r4;r5;r6;b1;b2]]
 ;;
     
 let objs = rand_scene()
-let from = Vec.mk 7. 2. 7.
-let _to  = Vec.mk 0. 1. 0.
+let from = Vec.mk 278. 278. ~-.800.
+let _to  = Vec.mk 278. 278. 0.
 let dist_to_focus = 10.
-let camera = Camera.look_at from _to Vec.y 70. (float nx / float ny) 0.0 dist_to_focus 0. 0.
+let fov = 40.
+let aperature = 0.
+let camera = Camera.look_at from _to Vec.y fov (float nx / float ny) aperature dist_to_focus 0. 0.
 let sample_ray = sample_ray (camera, objs, ns)
 
 let trace_image start_y stride length chan id =
@@ -222,6 +245,21 @@ let single_threaded () =
     ) img;
     write_ppm img "out.ppm"
 ;;
+
+(*
+let gc_settings = 
+let open Gc in    
+{
+    minor_heap_size = 1000000;
+    major_heap_increment = 1000;
+    space_overhead = 90;
+    verbose = 0;
+    max_overhead = 1000; (* never triggered *)
+    stack_limit = 4096000;
+    allocation_policy = 1;
+    window_size = 1;
+}
+*)
 
 let _ =
     let default_procs = 4 in

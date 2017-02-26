@@ -44,6 +44,13 @@ and texture_color (texture, u, v, p) =
     | Image image -> image_texture (image, u, v, p)
 ;;
 
+let scatter_isotropic (texture, ray, hit_rec) =
+    let open Ray in
+    let scattered = {ray with origin=hit_rec.p; dir=Helpers.random_in_unit_sphere()} in
+    let attenuation = texture_color (texture, hit_rec.u, hit_rec.v, hit_rec.p) in
+    Some (attenuation, scattered)
+;;
+
 let scatter_lambert (albedo, ray, hit_rec) =
     let open Ray in
     let albedo = texture_color (albedo, hit_rec.u, hit_rec.v, hit_rec.p) in
@@ -52,7 +59,7 @@ let scatter_lambert (albedo, ray, hit_rec) =
     Some (albedo, scattered)
 ;;
 
-let scatter_metal (albedo, fuzz, ray, hit_rec) =
+let scatter_metal (albedo, fuzz, ray, hit_rec : Vec.t * float * Ray.t * Objects.hit_record) =
     let open Ray in
     let reflected = Vec.reflect (Vec.norm ray.dir) hit_rec.normal in
     let scattered = Ray.mkt hit_rec.p (reflected +. (Vec.s_mult fuzz (random_in_unit_sphere()))) ray.time in
@@ -62,7 +69,7 @@ let scatter_metal (albedo, fuzz, ray, hit_rec) =
         None
 ;;
 
-let scatter_dielectric (ref_idx, ray, hit_rec) =
+let scatter_dielectric (ref_idx, ray, hit_rec : float * Ray.t * Objects.hit_record) =
     let open Ray in
     let attenuation = Vec.mk 1. 1. 1. in
     let out_norm, ni_over_nt, cosine =
@@ -102,4 +109,5 @@ let scatter (ray , hit_rec : Ray.t * Objects.hit_record) : (Vec.t * Ray.t) optio
             scatter_metal (albedo, fuzz, ray, hit_rec)
     | Dielectric ref_idx -> scatter_dielectric (ref_idx, ray, hit_rec)
     | Light _ -> None
+    | Isotropic texture -> scatter_isotropic (texture, ray, hit_rec)
 ;;

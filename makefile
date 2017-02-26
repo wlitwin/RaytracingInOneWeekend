@@ -1,7 +1,7 @@
 OCAMLBUILD = ocamlbuild -use-ocamlfind
 
 opt:
-	$(OCAMLBUILD) -ocamlc ocamlopt -ocamlopt ocamlopt -cflags -annot,-bin-annot,-noassert,-unbox-closures,-unboxed-types,-nodynlink,-O3,-rounds=10,-unbox-closures-factor=100 -pkg bigarray,unix,stb_image -I src src/main.native
+	$(OCAMLBUILD) -ocamlc ocamlopt -ocamlopt ocamlopt -cflags -unsafe,-annot,-bin-annot,-noassert,-unbox-closures,-unboxed-types,-nodynlink,-O3,-rounds=8,-unbox-closures-factor=100 -pkg bigarray,unix,stb_image -I src src/main.native
 
 dbg:
 	$(OCAMLBUILD) -cflags -annot,-bin-annot -pkg bigarray,unix,stb_image -I src src/main.d.byte
