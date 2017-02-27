@@ -4,6 +4,7 @@ open Vec
 open Ray
 open Objects
 open Texture
+open Spectrum
 
 let nx = 800
 let ny = 400
@@ -13,19 +14,19 @@ let fnx = float nx
 let fny = float ny
 let fsamps = float ns
 
-let rec shoot_ray (ray, objs, depth) : Vec.t =
+let rec shoot_ray (ray, objs, depth) : float =
     match hit_many (ray, 0.001, max_float, objs) with
     | Some hit_rec -> 
-            let light = emitted hit_rec in
+            let light = emitted (hit_rec, ray.wavelength) in
             if depth < 50 then
                 match scatter (ray, hit_rec) with
                 | Some (attenuation, scattered) ->
-                    light +. attenuation *. (shoot_ray (scattered, objs, (iadd depth 1)))
+                    light + attenuation * (shoot_ray (scattered, objs, (iadd depth 1)))
                 | None -> light
             else
                 light
     | None ->
-        Vec.zero
+        0.0 
             (*
         let n_dir = norm ray.dir in
         let t : float = 0.5 * (n_dir.y + 1.0) in
@@ -34,17 +35,27 @@ let rec shoot_ray (ray, objs, depth) : Vec.t =
 ;;
 
 let sample_ray (camera, objs, samps) (x, y) =
-    let rec loop i color = 
-        match i with
-        | 0 -> color
-        | n ->
-            let u = (x + randf()) / fnx
-            and v = (y + randf()) / fny in
-            let ray = Camera.get_ray (camera, u, v) in
-            loop (isub n 1) (color +. shoot_ray (ray, objs, 0))
+    let spectrum = create_spectrum() in
+    let rec loop_wave w =
+        if w <= 780 then begin
+            let rec loop i color = 
+                match i with
+                | 0 -> color
+                | n ->
+                    let u = (x + randf()) / fnx
+                    and v = (y + randf()) / fny in
+                    let ray = Camera.get_ray (camera, u, v, float w) in
+                    loop (isub n 1) (color + shoot_ray (ray, objs, 0))
+            in
+            let intensity = loop samps 0.0 in
+            spectrum.(idiv w 5) <- intensity / fsamps;
+            loop_wave (iadd w 5)
+        end
     in
-    let color = loop samps Vec.zero in
-    s_div fsamps color
+    (*let color = loop samps Vec.zero in*)
+    (*s_div fsamps color*)
+    loop_wave 380;
+    spectrum
 ;;
 
 let rand_color() =
@@ -142,7 +153,9 @@ let trace_image start_y stride length chan id =
     set_image (fun x y ->
         let x = float x
         and y = float (calc_offset y) in
-        sample_ray (x, y) |> op sqrt
+        sample_ray (x, y)
+        |> spectrum_to_color
+        |> op sqrt
     ) img;
     Printf.printf "%d dumping data\n" id;
     flush stdout;
@@ -241,7 +254,9 @@ let single_threaded () =
     set_image (fun x y ->
         let x = float x
         and y = float y in
-        sample_ray (x, y) |> op sqrt
+        sample_ray (x, y)
+        |> spectrum_to_color
+        |> op sqrt
     ) img;
     write_ppm img "out.ppm"
 ;;

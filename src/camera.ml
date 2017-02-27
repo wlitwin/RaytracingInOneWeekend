@@ -68,11 +68,12 @@ let look_at from at vup vfov aspect aperature focus_dist time0 time1 =
     }
 ;;
 
-let get_ray (camera, u, v) = 
+let get_ray (camera, u, v, w) = 
     let rd = s_mult camera.lens_radius (rand_in_unit_disk()) in
     let offset = add (s_mult rd.x camera.u) (s_mult rd.y camera.v) in
     { Ray.origin = add camera.origin offset;
       Ray.dir = sub (sub (add camera.lower_left (add (s_mult u camera.horizontal) (s_mult v camera.vertical))) camera.origin) offset;
       Ray.time = camera.time0 +. (randf() *. (camera.time1 -. camera.time0));
+      Ray.wavelength = w;
     }
 ;;
