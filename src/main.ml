@@ -6,9 +6,9 @@ open Objects
 open Texture
 open Spectrum
 
-let nx = 800
-let ny = 400
-let ns = 6000
+let nx = 200
+let ny = 100
+let ns = 1
 
 let fnx = float nx
 let fny = float ny
@@ -21,6 +21,7 @@ let rec shoot_ray (ray, objs, depth) : float =
             if depth < 50 then
                 match scatter (ray, hit_rec) with
                 | Some (attenuation, scattered) ->
+                    Printf.printf "Attenuation %f Light %f\n" attenuation light; flush stdout;
                     light + attenuation * (shoot_ray (scattered, objs, (iadd depth 1)))
                 | None -> light
             else
@@ -36,26 +37,20 @@ let rec shoot_ray (ray, objs, depth) : float =
 
 let sample_ray (camera, objs, samps) (x, y) =
     let spectrum = create_spectrum() in
-    let rec loop_wave w =
-        if w <= 780 then begin
-            let rec loop i color = 
-                match i with
-                | 0 -> color
-                | n ->
-                    let u = (x + randf()) / fnx
-                    and v = (y + randf()) / fny in
-                    let ray = Camera.get_ray (camera, u, v, float w) in
-                    loop (isub n 1) (color + shoot_ray (ray, objs, 0))
-            in
-            let intensity = loop samps 0.0 in
-            spectrum.(idiv w 5) <- intensity / fsamps;
-            loop_wave (iadd w 5)
-        end
-    in
-    (*let color = loop samps Vec.zero in*)
-    (*s_div fsamps color*)
-    loop_wave 380;
-    spectrum
+    for n=0 to isub samps 1 do
+        let u = (x + randf()) / fnx
+        and v = (y + randf()) / fny in
+        let ray = Camera.get_ray (camera, u, v) in
+        for i=0 to isub Spectrum.spectrum_length 1 do
+            let wavelength = float i * 5. in
+            let ray = {ray with wavelength} in
+            spectrum.(i) <- spectrum.(i) + shoot_ray (ray, objs, 0);
+        done;
+    done;
+    Array.iteri (fun i v ->
+        spectrum.(i) <- spectrum.(i) / fsamps
+    ) spectrum;
+    spectrum |> spectrum_to_color
 ;;
 
 let rand_color() =
@@ -154,7 +149,6 @@ let trace_image start_y stride length chan id =
         let x = float x
         and y = float (calc_offset y) in
         sample_ray (x, y)
-        |> spectrum_to_color
         |> op sqrt
     ) img;
     Printf.printf "%d dumping data\n" id;
@@ -255,7 +249,6 @@ let single_threaded () =
         let x = float x
         and y = float y in
         sample_ray (x, y)
-        |> spectrum_to_color
         |> op sqrt
     ) img;
     write_ppm img "out.ppm"

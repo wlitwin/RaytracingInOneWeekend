@@ -38,7 +38,7 @@ let rec checker_texture (even, odd, u, v, p, wavelength) =
     else
         texture_color (odd, u, v, p, wavelength)
 
-and texture_color (texture, u, v, p, wavelength) =
+and texture_color (texture, u, v, p, wavelength) : float =
     match texture with
     | ConstantColor color -> color_to_spectrum (color, wavelength)
     | Checker (even, odd) -> checker_texture (even, odd, u, v, p, wavelength)
@@ -97,7 +97,7 @@ let scatter_dielectric (ref_idx, ray, hit_rec : float * Ray.t * Objects.hit_reco
     )
 ;;
 
-let emitted (hit_rec, wavelength : Objects.hit_record * float) =
+let emitted (hit_rec, wavelength : Objects.hit_record * float) : float =
     match hit_rec.material with
     | Light albedo -> texture_color (albedo, hit_rec.u, hit_rec.v, hit_rec.p, wavelength)
     | _ -> 0.0
