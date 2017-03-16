@@ -4,53 +4,61 @@ open Vec
 open Ray
 open Objects
 open Texture
-open Spectrum
 
-let nx = 200
-let ny = 100
-let ns = 1
+let nx = 400
+let ny = 200
+let ns = 1000
 
 let fnx = float nx
 let fny = float ny
 let fsamps = float ns
 
-let rec shoot_ray (ray, objs, depth) : float =
+let trim_color color = function
+    | All -> color
+    | Red -> {x=color.x; y=0.; z=0.}
+    | Green -> {y=color.y; x=0.; z=0.}
+    | Blue -> {z=color.z; x=0.; y=0.}
+;;
+
+let rec shoot_ray (ray, objs, depth, channel) : Vec.t =
     match hit_many (ray, 0.001, max_float, objs) with
     | Some hit_rec -> 
-            let light = emitted (hit_rec, ray.wavelength) in
+            let light = emitted hit_rec in
             if depth < 50 then
                 match scatter (ray, hit_rec) with
-                | Some (attenuation, scattered) ->
-                    Printf.printf "Attenuation %f Light %f\n" attenuation light; flush stdout;
-                    light + attenuation * (shoot_ray (scattered, objs, (iadd depth 1)))
+                | Some (attenuation, SingleRay scattered) ->
+                        let attenuation = trim_color attenuation channel in
+                        light +. attenuation *. (shoot_ray (scattered, objs, (iadd depth 1), channel))
+                | Some (attenuation, MultiRay (red, green, blue)) ->
+                        let attenuation = trim_color attenuation channel in
+                        let color =
+                            match channel with
+                            | All -> 
+                                let r = shoot_ray (red,   objs, (iadd depth 1), Red)
+                                and g = shoot_ray (green, objs, (iadd depth 1), Green)
+                                and b = shoot_ray (blue,  objs, (iadd depth 1), Blue) in
+                                (Vec.mk r.x g.y b.z)
+                            | Red -> shoot_ray (red, objs, (iadd depth 1), Red)
+                            | Green -> shoot_ray (green, objs, (iadd depth 1), Green)
+                            | Blue -> shoot_ray (blue, objs, (iadd depth 1), Blue)
+                        in
+                        light +. attenuation *. color
                 | None -> light
             else
                 light
-    | None ->
-        0.0 
-            (*
-        let n_dir = norm ray.dir in
-        let t : float = 0.5 * (n_dir.y + 1.0) in
-        accum_atten *. (add (s_mult (1.0 - t) Vec.one) (s_mult t {x=0.5;y=0.7;z=1.0}))
-*)
+    | None -> Vec.zero
 ;;
 
 let sample_ray (camera, objs, samps) (x, y) =
-    let spectrum = create_spectrum() in
-    for n=0 to isub samps 1 do
-        let u = (x + randf()) / fnx
-        and v = (y + randf()) / fny in
-        let ray = Camera.get_ray (camera, u, v) in
-        for i=0 to isub Spectrum.spectrum_length 1 do
-            let wavelength = float i * 5. in
-            let ray = {ray with wavelength} in
-            spectrum.(i) <- spectrum.(i) + shoot_ray (ray, objs, 0);
-        done;
-    done;
-    Array.iteri (fun i v ->
-        spectrum.(i) <- spectrum.(i) / fsamps
-    ) spectrum;
-    spectrum |> spectrum_to_color
+    let rec loop samps color = 
+        if samps = 0 then color
+        else
+            let u = (x + randf()) / fnx
+            and v = (y + randf()) / fny in
+            let ray = Camera.get_ray (camera, u, v) in
+            loop (isub samps 1) (color +. shoot_ray (ray, objs, 0, Ray.All))
+    in
+    s_div fsamps (loop samps Vec.zero)
 ;;
 
 let rand_color() =
@@ -66,9 +74,10 @@ let load_image filename =
 
 let rand_scene () =
     (*
-    let image = Image (load_image "pics/large.png") in
+    (*let image = Image (load_image "pics/large.png") in*)
     let checker = Checker (ConstantColor (Vec.mk 0.1 0.1 0.1),
                            ConstantColor (Vec.mk 0.9 0.9 0.9)) in
+    let sun = Sphere (Vec.mk 0. 10000. 0., 9000., Light (ConstantColor (Vec.init 1.))) in
     let s1 = Sphere (Vec.mk 0. ~-.1000. 0., 1000., Lambert (Noise 5.))
     and s2 = Sphere ({x=0.;y= 2.;z= 0.}, 2., Lambert (Noise 5.))
     and s4 = Sphere ({x= 0.0;y= 7.;z= 0.}, 2., Light (ConstantColor (Vec.init 2.)))
@@ -104,36 +113,44 @@ let rand_scene () =
                       :: lst in
             accume lst (isub count 1)
     in
-    [build_bvh 0. 1. (accume [s1;s2;s4;r1] 1)]
-*)
+    let from = Vec.mk 0. 1. ~-.10.
+    and _to  = Vec.mk 0. 1. 0.
+    and dist_to_focus = 10.
+    and fov = 20.
+    and aperature = 0. in
+    let camera = Camera.look_at from _to Vec.y fov (float nx / float ny) aperature dist_to_focus 0. 0. in
+    camera, [build_bvh 0. 1. (accume [sun;s1;s2;s4;r1] 100)]
+    *)
     let red = Lambert (ConstantColor (Vec.mk 0.65 0.05 0.05))
     and white = Lambert (ConstantColor (Vec.init 0.73))
     and green = Lambert (ConstantColor (Vec.mk 0.12 0.45 0.15))
-    and light = Light (ConstantColor (Vec.init 15.))
+    and light = Light (ConstantColor (Vec.init 5.))
     and smoke1 = Isotropic (ConstantColor (Vec.init 1.))
     and smoke2 = Isotropic (ConstantColor (Vec.init 0.)) in
     let r1 = Flip (YZ_Rect {y0=0.;y1=555.;z0=0.;z1=555.;k=555.;material=green})
     and r2 = YZ_Rect {y0=0.;y1=555.;z0=0.;z1=555.;k=0.;material=red}
-    and r3 = XZ_Rect {x0=213.;x1=343.;z0=227.;z1=332.;k=554.;material=light}
+    and r3 = XZ_Rect {x0=113.;x1=443.;z0=127.;z1=432.;k=554.;material=light}
     and r4 = Flip (XZ_Rect {x0=0.;x1=555.;z0=0.;z1=555.;k=555.;material=white})
     and r5 = XZ_Rect {x0=0.;x1=555.;z0=0.;z1=555.;k=0.;material=white}
     and r6 = Flip (XY_Rect {x0=0.;x1=555.;y0=0.;y1=555.;k=555.;material=white})
-    and b1 = mk_box (Vec.mk 0. 0. 0., Vec.mk 165. 165. 165., white)
+    and b1 = mk_box (Vec.mk 0. 0. 0., Vec.mk 165. 165. 165., Dielectric 1.5)
     and b2 = mk_box (Vec.mk 0. 0. 0., Vec.mk 165. 330. 165., white) in
     let b1 = Translate (make_y_rot ~-.18. b1, Vec.mk 130. 0. 65.)
     and b2 = Translate (make_y_rot   15. b2, Vec.mk 265. 0. 295.) in
-    let b1 = ConstantMedium (smoke1, 0.01, b1)
-    and b2 = ConstantMedium (smoke2, 0.01, b2) in
-    [build_bvh 0. 1. [r1;r2;r3;r4;r5;r6;b1;b2]]
+    (*let b1 = ConstantMedium (smoke1, 0.01, b1)*)
+    let b2 = ConstantMedium (smoke2, 0.01, b2) in
+    (*let s1 = Sphere (Vec.mk 165. 80. 165., 80., Dielectric 1.5) in (*Lambert (ConstantColor (Vec.mk 0.8 0.8 0.8))) in*)*)
+    let s2 = Sphere (Vec.mk 365. 120. 365., 120., Dielectric 2.0) in (*Lambert (ConstantColor (Vec.mk 0.8 0.8 0.8))) in*)
+    let from = Vec.mk 278. 278. ~-.800.
+    and _to  = Vec.mk 278. 278. 0.
+    and dist_to_focus = 10.
+    and fov = 40.
+    and aperature = 0. in
+    let camera = Camera.look_at from _to Vec.y fov (float nx / float ny) aperature dist_to_focus 0. 0. in
+    camera, [build_bvh 0. 1. [r1;r2;r3;r4;r5;r6;b1;s2]]
 ;;
     
-let objs = rand_scene()
-let from = Vec.mk 278. 278. ~-.800.
-let _to  = Vec.mk 278. 278. 0.
-let dist_to_focus = 10.
-let fov = 40.
-let aperature = 0.
-let camera = Camera.look_at from _to Vec.y fov (float nx / float ny) aperature dist_to_focus 0. 0.
+let camera, objs = rand_scene()
 let sample_ray = sample_ray (camera, objs, ns)
 
 let trace_image start_y stride length chan id =
@@ -148,8 +165,7 @@ let trace_image start_y stride length chan id =
     set_image (fun x y ->
         let x = float x
         and y = float (calc_offset y) in
-        sample_ray (x, y)
-        |> op sqrt
+        sample_ray (x, y) |> op sqrt
     ) img;
     Printf.printf "%d dumping data\n" id;
     flush stdout;

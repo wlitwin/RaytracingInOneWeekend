@@ -74,6 +74,5 @@ let get_ray (camera, u, v) =
     { Ray.origin = add camera.origin offset;
       Ray.dir = sub (sub (add camera.lower_left (add (s_mult u camera.horizontal) (s_mult v camera.vertical))) camera.origin) offset;
       Ray.time = camera.time0 +. (randf() *. (camera.time1 -. camera.time0));
-      Ray.wavelength = 0.;
     }
 ;;
