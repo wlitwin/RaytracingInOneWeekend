@@ -16,3 +16,5 @@ Series can be found here: https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-B
 ![Marble](https://github.com/wlitwin/RaytracingInOneWeekend/blob/end_of_book2/pics/marble.png)
 
 ![Motion Blur](https://github.com/wlitwin/RaytracingInOneWeekend/blob/end_of_book2/pics/many.png)
+
+![Multi-spectral](https://github.com/wlitwin/RaytracingInOneWeekend/blob/master/pics/multi.png) (Rainbows)
